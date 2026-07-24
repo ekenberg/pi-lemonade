@@ -37,7 +37,7 @@ options are in **HANDOVER.md** — read it before doing anything else.
 
 ## How to proceed (this phase)
 
-1. Read **HANDOVER.md** end to end.
+1. Read **HANDOVER.md** end to end (frozen input — do not edit).
 2. Verify the live lemond facts against `http://localhost:13305` (see §3 for
    the exact endpoints; beware the SPA catch-all trap in §4).
 3. Read the reference extension sources in §6 to confirm the pi extension
@@ -46,7 +46,12 @@ options are in **HANDOVER.md** — read it before doing anything else.
    extension worth building? If build: scope (core / lemond-specific /
    deferred), file layout, test approach, and upstream-vs-personal-fork
    recommendation.
-5. Stop and present the assessment to the owner. Do not implement without
+5. **Record all findings in `DISCOVERY.md`** — it is the output target for
+   this phase. Fill in verified facts, discrepancies, open questions,
+   assessment, and recommendation. Do not edit HANDOVER.md (it is the
+   frozen input); record corrections in DISCOVERY.md §Discrepancies and
+   update HANDOVER.md only if the owner directs a re-freeze.
+6. Stop and present the assessment to the owner. Do not implement without
    approval.
 
 ## Conventions (inherited from sibling pi-* extensions)
