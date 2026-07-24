@@ -1,0 +1,13 @@
+# editor / OS
+*.swp
+*.swo
+*~
+.DS_Store
+
+# node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# pi subagent artifacts
+.pi-subagents/
