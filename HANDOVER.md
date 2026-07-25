@@ -95,9 +95,14 @@ control** — those four are what `pi-lemonade` would buy back.
 - **Explicit load/unload** via `/api/v1/load {model_name}` and
   `/api/v1/unload {model_name}`: pre-warm before prompting (kills first-token
   latency on a cold 22G MoE) or free VRAM on demand.
-- **Health/telemetry surfacing**: `/api/v1/health` exposes loaded models,
-  pinned state, `max_loaded_models`, eviction state, VRAM%. Feed a status line
-  — note `pi-tps-meter` is already installed; extend it rather than duplicate.
+- **Health/telemetry surfacing**: three distinct sources (§3) —
+  `/api/v1/health` for residency (loaded / pinned / `max_loaded_models`),
+  `/api/v1/stats` for **TTFT + tokens/sec of the last call** plus running
+  totals, `/api/v1/system-stats` for cpu/gpu/npu/vram gauges. Together that is
+  a ready-made status line, server-measured. Note `pi-tps-meter` is already
+  installed — extend it rather than duplicate, and check whether it measures
+  client-side, in which case lemond's numbers are strictly better (they
+  include server-side queueing and true TTFT).
 - **Device labeling**: `all_models_loaded[].device` is `npu` vs `gpu`. Badging
   models in the selector makes the cheap-NPU / deep-iGPU choice visible.
 
@@ -146,9 +151,26 @@ Richer lemond-native (use these for discovery/status):
   `model_name`, **not** `model` (the OpenAI shape is rejected with a confusing
   type-error). `save_options:true` persists the supplied recipe_options.
 - `POST /api/v1/unload` — body `{model_name}`.
+- `GET  /api/v1/stats` — **post-call telemetry**: `{time_to_first_token,
+  tokens_per_second, input_tokens, output_tokens, prompt_tokens,
+  input_tokens_total, output_tokens_total, prompt_tokens_total,
+  request_count_total}`. Last-call values plus cumulative totals. **This is the
+  TPS/TTFT source — `/health` has neither.** Live sample (2026-07-25):
+  `{"time_to_first_token":2.934,"tokens_per_second":18.245,"output_tokens":68,
+  "request_count_total":18,…}`.
+- `GET  /api/v1/system-stats` — `{cpu_percent, gpu_percent, npu_percent,
+  memory_gb, vram_gb}`. What drives lemond's own UI telemetry bar.
+- `GET  /metrics` — Prometheus exposition (`text/plain`), per-model series
+  (`lemonade_loaded_models`, `lemonade_model_{info,loaded,input_tokens,…}`).
+  NB **bare path**: `/api/v1/metrics` is a 404.
 - CLI: `/opt/bin/lemonade` (`import`, `load`, `unload`, `config`, `status`, …)
   talks to the running server over the same API — so `lemonade config set` is
   the non-root way to mutate server config.
+
+Path aliases: `/api/v1/*`, `/api/v0/*`, `/v1/*`, `/v0/*` all resolve to the
+same handlers. lemond classes `stats`, `system-stats` and `downloads` as
+"quiet polling" paths (request logging suppressed) — they are *designed* to be
+polled on a timer, so a status line can refresh them cheaply.
 
 ### Reserved/managed args (only if the extension ever sets llamacpp_args)
 lemond manages some llama-server flags itself and rejects them in
@@ -162,12 +184,18 @@ defaults for `mtp`-labelled models. `llamacpp_args` is flag-level merged
 
 ## 4. The SPA catch-all trap (important)
 
-lemond hosts its web-app on the same port. **Any unmatched route returns the
-SPA `index.html` with HTTP 200**, not a 404:
+lemond hosts its web-app on the same port. **Unmatched paths outside `/api/`
+return the SPA `index.html` with HTTP 200**, not a 404 (verified 2026-07-25):
 
-- `GET /health` → 200 + HTML (NOT llama-server's `{status:"ok"}` JSON)
-- `GET /props?autoload=false` → 200 + HTML (NOT llama-server's props JSON)
-- `GET /nonexistent-anything` → 200 + HTML
+| Probe | Result |
+|---|---|
+| `GET /health` | 200 `text/html` (NOT llama-server's `{status:"ok"}`) |
+| `GET /props?autoload=false` | 200 `text/html` (NOT llama-server's props) |
+| `GET /nonexistent-anything` | 200 `text/html` |
+| `GET /api/v1/nonexistent` | 404 `application/json` — honest |
+
+So routing under `/api/` is trustworthy; the trap bites precisely the bare,
+llama-server-shaped paths that pi-llama-cpp probes.
 
 This is exactly why pi-llama-cpp cannot be pointed at lemond: its
 `fetchServerHealth()` / `fetchServerProps()` would JSON-parse HTML and throw,
@@ -247,6 +275,10 @@ Before trusting anything in this file, confirm:
 - [ ] `GET :13305/api/v1/models` returns richer objects with `labels` and
       `max_context_window`.
 - [ ] `GET :13305/api/v1/health` returns `{status:"ok",…}`.
+- [ ] `GET :13305/api/v1/stats` returns `tokens_per_second` +
+      `time_to_first_token` (run a chat call first, then re-read it and
+      confirm the values moved).
+- [ ] `GET :13305/api/v1/system-stats` returns cpu/gpu/npu/vram gauges.
 - [ ] `GET :13305/health` and `/props?autoload=false` return **HTML** with HTTP
       200 (the SPA trap — prove it to yourself).
 - [ ] `POST :13305/v1/chat/completions` round-trips a prompt on
