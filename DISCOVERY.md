@@ -8,7 +8,7 @@ the owner directs a re-freeze).
 
 ## Verified facts
 
-Confirm (or correct) the claims in HANDOVER.md §9. One line each, dated.
+Confirm (or correct) the claims in HANDOVER.md §8. One line each, dated.
 Preface any that fail with `❌` and move the detail to §Discrepancies.
 
 - [ ] `GET :13305/v1/models` → JSON, 4 model ids
@@ -42,7 +42,7 @@ experiment) before the assessment can be final.
 
 ## Assessment
 
-Address the honest gate from HANDOVER.md §2 explicitly:
+Address the decision gate from HANDOVER.md §0 explicitly:
 
 - How often does the lemond model set actually change? (Stable at 3–4, or
   churny?)

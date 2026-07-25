@@ -37,7 +37,8 @@ options are in **HANDOVER.md** — read it before doing anything else.
 
 ## How to proceed (this phase)
 
-1. Read **HANDOVER.md** end to end (frozen input — do not edit).
+1. Read **HANDOVER.md** end to end (frozen input — do not edit). Start with
+   §0, the decision gate — it frames everything else.
 2. Verify the live lemond facts against `http://localhost:13305` (see §3 for
    the exact endpoints; beware the SPA catch-all trap in §4).
 3. Read the reference extension sources in §6 to confirm the pi extension
