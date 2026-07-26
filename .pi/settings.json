@@ -2,10 +2,10 @@
   "subagents": {
     "agentOverrides": {
       "worker": {
-        "model": "openrouter/poolside/laguna-s-2.1"
+        "model": "anthropic/claude-sonnet-5"
       },
       "reviewer": {
-        "model": "openrouter/poolside/laguna-s-2.1",
+        "model": "anthropic/claude-sonnet-5",
         "acceptanceRole": "read-only"
       }
     }
