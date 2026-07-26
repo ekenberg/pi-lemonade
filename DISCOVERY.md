@@ -99,7 +99,9 @@ the section and give the corrected fact with evidence.
 
 7. **§3: Version** — Source `CMakeLists.txt` says `11.5.0`; running server reports `11.0.0`. The deployed binary lags the current source by at least one minor version.
 
-8. **§2 §Lemond-specific: "Eviction-aware UX"** — `max_loaded_models` is per capability type (llm:1, image:1, embedding:1, etc.), not a single global cap. The eviction model is more nuanced than "1 model total."
+8. **HANDOVER §3 / this file §Verified facts: `type` field does NOT exist.** Both documents claim `/api/v1/models` entries carry `type` (llm/embedding/…). Live re-verification (2026-07-26, v11.0.0) shows no `type` key on any of the 20 entries (union of keys: id, labels, recipe, downloaded, checkpoints, max_context_window, …). The chat-LLM filter must use `recipe` + exclusion `labels` instead — PLAN.md was corrected accordingly (commit 64eb308). Caught by the first implementation worker; the earlier ✅ on this claim in §Verified facts was wrong (the field list was asserted, evidently from source newer than the deployed binary, not from the live response).
+
+9. **§2 §Lemond-specific: "Eviction-aware UX"** — `max_loaded_models` is per capability type (llm:1, image:1, embedding:1, etc.), not a single global cap. The eviction model is more nuanced than "1 model total."
 
 ## Open questions
 
