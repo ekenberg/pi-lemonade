@@ -28,10 +28,15 @@ run them and report results. Do not skip checks.
 ## Facts you need (verified 2026-07-26, do not re-derive)
 
 `GET /api/v1/models` returns `{"data": [ ... ]}` where each entry has at
-least: `id` (string), `type` (string: `llm` | `embeddings` | `reranking` |
-`transcription` | `image` | `tts` | ...), `labels` (string array, may include
-`vision`, `tool-calling`, `reasoning`, `mtp`, `custom`, ...), `downloaded`
-(boolean), `recipe` (string), and optionally `max_context_window` (number).
+least: `id` (string), `labels` (string array, may include `vision`,
+`tool-calling`, `reasoning`, `mtp`, `custom`, `embeddings`, `transcription`,
+`realtime-transcription`, `audio-generation`, ...), `downloaded` (boolean),
+`recipe` (string: `llamacpp` | `flm` | `thinksound` | ...), and optionally
+`max_context_window` (number).
+
+**There is NO `type` field** (re-verified live 2026-07-26 against v11.0.0;
+earlier documents claimed one — they are wrong). Model kind must be inferred
+from `recipe` + `labels`.
 
 Model mapping decisions (already made by the owner — implement exactly):
 
@@ -46,8 +51,14 @@ Model mapping decisions (already made by the owner — implement exactly):
 | `cost` | all zeros |
 | `compat` | `{ supportsStore: false, supportsDeveloperRole: false, maxTokensField: "max_tokens", thinkingFormat: "qwen-chat-template" }` |
 
-Filter (chat LLMs only): keep a model iff `type === "llm"` **and**
-`downloaded === true`. Nothing else. (~12 of 20 live models pass.)
+Filter (chat LLMs only): keep a model iff **all** of:
+1. `downloaded === true`
+2. `recipe` is `"llamacpp"` or `"flm"`
+3. `labels` contains **none** of: `embeddings`, `transcription`,
+   `realtime-transcription`, `audio-generation`, `reranking`
+
+(17 of 20 live models pass; excluded: `ThinkSound-SFX` by recipe,
+`embed-gemma-300m-FLM` and `whisper-v3-turbo-FLM` by labels.)
 
 Provider registration (see pi docs `docs/custom-provider.md`, legacy
 provider-config form):
@@ -91,7 +102,7 @@ Acceptance: `npx tsc --noEmit` exits 0 (no source files yet is fine).
 
 Typed client for discovery. Contents:
 
-- `export interface LemonadeModel { id: string; type: string; labels: string[]; downloaded: boolean; recipe: string; max_context_window?: number; }`
+- `export interface LemonadeModel { id: string; labels: string[]; downloaded: boolean; recipe: string; max_context_window?: number; }`
 - `export async function fetchLemonadeModels(baseUrl: string): Promise<LemonadeModel[] | null>`
   - `GET {baseUrl}/api/v1/models` with a 5-second `AbortSignal.timeout`.
   - Return `null` (never throw) when: fetch rejects, status is not 2xx,
@@ -146,7 +157,10 @@ Use `node:test` + `node:assert/strict`.
 - non-vision small model (`max_context_window: 40960`) → input text only,
   maxTokens 4096.
 - missing `max_context_window` → contextWindow 32768, maxTokens 4096.
-- `type: "embeddings"` → filtered out. `downloaded: false` → filtered out.
+- `labels: ["embeddings"]` (recipe flm) → filtered out. `labels: ["audio",
+  "realtime-transcription", "transcription"]` → filtered out.
+  `recipe: "thinksound"` → filtered out. `downloaded: false` → filtered out.
+  `labels: []` with recipe flm, downloaded true → kept (plain chat model).
 - labels missing `reasoning` → reasoning still true (blanket rule).
 
 `lemonade-api.test.ts` — mock `globalThis.fetch` (save/restore in
@@ -170,10 +184,10 @@ against the real server and prints what *would* be registered, without pi:
 - If the server is unreachable, print the same warning message Step 4 uses
   and exit 0 (not an error).
 
-Acceptance: `npm run dry-run` against the live server prints ~12 registered
+Acceptance: `npm run dry-run` against the live server prints **17** registered
 models including `Qwen3.6-35B-A3B-MTP-Uncensored` (with `image`) and
-excludes `embed-gemma-300m-FLM`, `whisper-v3-turbo-FLM`, `ThinkSound-SFX`.
-Paste the full output in your report.
+excludes exactly `embed-gemma-300m-FLM`, `whisper-v3-turbo-FLM`,
+`ThinkSound-SFX`. Paste the full output in your report.
 
 ### Step 7 — Docs
 
