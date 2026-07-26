@@ -31,15 +31,26 @@ and excludes `ThinkSound-SFX`, `embed-gemma-300m-FLM`, and
 
 ## Carried-forward verifications (from DISCOVERY.md §Decision)
 
-- [ ] Cold-load test: `enable_thinking:false` (via `qwen-chat-template` /
-      `chat_template_kwargs`) on a big MoE model that uses
-      `--reasoning-preserve` (e.g. `Gemma4-26B-A4B-QAT-MTP-Uncensored` or
-      `Qwen3.6-35B-A3B-MTP-Uncensored`) — confirm the thinking toggle still
-      works correctly on first load, not just after a warm reload.
-- [ ] FLM backend tolerance: confirm the FLM recipe accepts
-      `chat_template_kwargs` (sent by `qwen-chat-template` thinking format)
-      without erroring, for at least one `-FLM` model (e.g.
-      `qwen3.5-4b-FLM`).
+- [x] **Cold-load test — PASSED (2026-07-26).** Direct A/B on
+      `Qwen3.6-35B-A3B-MTP-Uncensored` (which carries `--reasoning-preserve`):
+      baseline request → 343 chars of `reasoning_content`; with
+      `chat_template_kwargs:{enable_thinking:false}` → 0 chars; same result
+      with `preserve_thinking:true` added (the exact payload pi sends).
+      End-to-end through pi with `--thinking off` → clean answer, no thinking
+      block. Conclusion: `--reasoning-preserve` does **not** force thinking
+      on; it concerns preserving reasoning across turns. DISCOVERY.md's
+      original "thinking always ON server-side" claim was wrong.
+- [x] **FLM tolerance — PASSED (2026-07-26).** `qwen3-it-4b-FLM`,
+      `translategemma-4b-FLM`, and `Qwen3-0.6B-GGUF` all ran through pi with
+      `chat_template_kwargs` present; no errors. Toggle verified on the wire
+      via a logging proxy: `--thinking off` → `enable_thinking:false`,
+      `--thinking high` → `enable_thinking:true`, no stray `reasoning_effort`.
+
+Cutover completed 2026-07-26: the static `Lemonade` provider block was
+removed from `~/.pi/agent/models.json` and the stale
+`Lemonade/qwen3vl-it-4b-FLM` entry in `enabledModels` was lowercased.
+Backups: `models.json.bak-pre-lemonade-cutover-*`,
+`settings.json.bak-pre-lemonade-cutover-*`.
 
 ## Notes on implementation choices not spelled out in PLAN.md
 
