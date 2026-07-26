@@ -1,0 +1,13 @@
+{
+  "subagents": {
+    "agentOverrides": {
+      "worker": {
+        "model": "openrouter/poolside/laguna-s-2.1"
+      },
+      "reviewer": {
+        "model": "openrouter/poolside/laguna-s-2.1",
+        "acceptanceRole": "read-only"
+      }
+    }
+  }
+}
