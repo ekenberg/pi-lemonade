@@ -116,7 +116,7 @@ experiment) before the assessment can be final.
 
 5. ~~Upstream path?~~ **RESOLVED**: personal fork first (`git@github.com:ekenberg/pi-lemonade.git`, `live`/`main`), per HANDOVER §7.
 
-6. **NEW — `mtp` vs `reasoning` labels**: the 3 big MoEs lack the `reasoning` label. Decide during implementation: override map, live probe, or accept `mtp`→reasoning heuristic (document whichever is chosen).
+6. ~~**NEW — `mtp` vs `reasoning` labels**~~ **RESOLVED (owner, 2026-07-26)**: assume **all registered chat models are reasoning-capable** (`reasoning: true` + `thinkingFormat: "qwen-chat-template"` blanket). No label trust, no override map, no heuristic, no server-side edits. Rationale: the mislabeling root cause is lemond's extra-models auto-labeler, which has no reasoning detection (labels are auto-derived: `vision` from mmproj, `mtp` from GGUF metadata, `tool-calling` from template) — the 3 big MoEs (`source: extra_models_dir` / imported without the flag) can never get the label without re-import or a lemond patch. Blanket-true failure modes are benign: a non-thinking model shows a no-op toggle (pi handles absent `reasoning_content` fine), and Jinja templates ignore an unreferenced `enable_thinking` kwarg. The label-trusting failure mode (silently losing thinking on the 3 main models) is worse. Residual check during implementation: FLM backend tolerates `chat_template_kwargs`. Optional long-term: teach lemond's auto-labeler to detect reasoning from the chat template (candidate for the lemonade contribution queue).
 
 ## Assessment
 
@@ -213,6 +213,6 @@ Owner's call (Johan, 2026-07-26):
 Implementation to-dos carried forward:
 1. Cold-load test: `enable_thinking:false` on a big MoE with
    `--reasoning-preserve` (verify toggle works there too).
-2. Decide `mtp`→reasoning handling (override map / probe / heuristic).
+2. ~~Decide `mtp`→reasoning handling~~ **RESOLVED**: blanket `reasoning: true` on all registered chat models (see Open questions #6). Sub-check: FLM backend accepts `chat_template_kwargs` without error.
 3. Replace the static `Lemonade` block in `~/.pi/agent/models.json` once the
    extension registers models (avoid duplicate provider entries).
