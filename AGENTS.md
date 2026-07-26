@@ -4,21 +4,21 @@
 Lemonade Server (`lemond`) integration for pi, as a successor to the now-
 incompatible bundled extension `pi-llama-cpp`.
 
-## Current state: CONTEXT-GATHERING / DISCOVERY (not yet a build)
+## Current state: BUILD (v1, core scope)
 
-This repository is in an evaluation phase. No extension code exists yet. The
-goal of this phase is to **gather context and decide** whether to build
-`pi-lemonade`, and if so, to produce an actionable plan.
+Discovery is complete. The owner decided **Build** on 2026-07-26 — see
+`DISCOVERY.md` §Decision for the recorded scope and rationale. Summary:
 
-Two valid outcomes:
-1. **Deferred** — the current static-provider workaround (see HANDOVER.md §1)
-   is judged sufficient, and this project is shelved until a real need appears.
-2. **Build** — discovery produces a concrete plan (scope, files, tests, upstream
-   path) and the project moves into implementation.
+- **v1 = core only**: auto-discovery from `/api/v1/models`, label→capability
+  inference, `compat.thinkingFormat: "qwen-chat-template"` on reasoning-capable
+  models, registered as an `openai-completions` provider against `:13305/v1`.
+- **Filter: chat LLMs only** (skip embeddings/transcription/audio/translate).
+- **Deferred to v2+**: load/unload commands, telemetry/status surface, device
+  badges, eviction-aware UX.
+- Open implementation to-dos are listed at the end of DISCOVERY.md §Decision.
 
-Do **not** start writing extension code in this phase. Read HANDOVER.md fully,
-verify its claims against the live system where feasible, and produce a written
-assessment + recommendation. The owner (Johan) decides the outcome.
+HANDOVER.md remains the frozen API/context reference; DISCOVERY.md records
+verified facts, corrections, and the decision. Read both before implementing.
 
 ## What this project is about
 
@@ -35,25 +35,20 @@ inference, health/load surfacing, explicit load control — are lost.
 API surface. The full reasoning, API survey, capability mapping, and scope
 options are in **HANDOVER.md** — read it before doing anything else.
 
-## How to proceed (this phase)
+## How to proceed (build phase)
 
-1. Read **HANDOVER.md** end to end (frozen input — do not edit). Start with
-   §0, the decision gate — it frames everything else.
-2. Verify the live lemond facts against `http://localhost:13305` (see §3 for
-   the exact endpoints; beware the SPA catch-all trap in §4).
-3. Read the reference extension sources in §6 to confirm the pi extension
-   shape and conventions.
-4. Produce a written assessment: is the static provider enough, or is the
-   extension worth building? If build: scope (core / lemond-specific /
-   deferred), file layout, test approach, and upstream-vs-personal-fork
-   recommendation.
-5. **Record all findings in `DISCOVERY.md`** — it is the output target for
-   this phase. Fill in verified facts, discrepancies, open questions,
-   assessment, and recommendation. Do not edit HANDOVER.md (it is the
-   frozen input); record corrections in DISCOVERY.md §Discrepancies and
-   update HANDOVER.md only if the owner directs a re-freeze.
-6. Stop and present the assessment to the owner. Do not implement without
-   approval.
+1. Read **HANDOVER.md** (frozen — do not edit; corrections live in
+   DISCOVERY.md §Discrepancies) and **DISCOVERY.md** (decision + verified
+   facts + implementation to-dos).
+2. Follow the proposed file layout and test approach in DISCOVERY.md
+   §"If build", adjusted to the approved v1 core scope.
+3. Only hit the `/api/`-prefixed and `/v1/*` endpoints listed in HANDOVER §3;
+   treat any `text/html` response as "endpoint absent" (SPA trap, §4).
+4. Resolve the carried-forward to-dos (big-MoE thinking toggle test,
+   `mtp`→reasoning handling) during implementation and note outcomes in
+   DEV.md.
+5. When the extension registers models, retire the static `Lemonade` block in
+   `~/.pi/agent/models.json` to avoid duplicates — coordinate with the owner.
 
 ## Conventions (inherited from sibling pi-* extensions)
 
@@ -70,7 +65,6 @@ options are in **HANDOVER.md** — read it before doing anything else.
 
 ## Hard rules
 
-- Do not write extension code in this phase.
 - Do not edit pi's dist files (runtime patching, if ever needed, resolves host
   modules at runtime — see `pi-model-annotation`).
 - Verify lemond endpoint claims by hitting them; never trust a `200` alone
