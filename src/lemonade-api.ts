@@ -122,8 +122,9 @@ export async function fetchLemonadeModels(
  * Fetch server health / residency info from a Lemonade Server instance.
  *
  * Never throws: returns `null` on any failure — see `fetchJson`. Coerces a
- * missing or non-array `all_models_loaded` to `[]` so callers never have to
- * null-check it.
+ * missing or non-array `all_models_loaded` to `[]`, and drops non-object
+ * entries within it, so callers never have to null-check it. Without the
+ * element filter a single `null` entry would blow up rendering downstream.
  */
 export async function fetchHealth(
   baseUrl: string,
@@ -138,7 +139,9 @@ export async function fetchHealth(
   return {
     ...candidate,
     all_models_loaded: Array.isArray(candidate.all_models_loaded)
-      ? (candidate.all_models_loaded as LemonadeLoadedModel[])
+      ? (candidate.all_models_loaded.filter(
+          (entry) => entry !== null && typeof entry === "object",
+        ) as LemonadeLoadedModel[])
       : [],
   };
 }

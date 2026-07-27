@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bar, renderStatus, type StatusSnapshot, type StatusTheme } from "../src/status-format.ts";
+import {
+  bar,
+  renderStatus,
+  visibleWidth,
+  type StatusSnapshot,
+  type StatusTheme,
+} from "../src/status-format.ts";
 import type {
   LemonadeHealth,
   LemonadeStats,
@@ -12,9 +18,11 @@ const identityTheme: StatusTheme = {
   bold: (s: string) => s,
 };
 
-function visibleWidth(s: string): number {
-  return s.length;
-}
+// NOTE: this file deliberately uses the production `visibleWidth` rather than
+// a local `.length` helper. The previous local helper reimplemented the same
+// naive metric as the code under test, so width assertions were structurally
+// blind to wide-character overflow. Correctness of the metric itself is
+// pinned by explicit expected values in the tests below.
 
 const sampleHealth: LemonadeHealth = {
   status: "ok",
@@ -299,4 +307,78 @@ test("renderStatus: gauge percentage labels are right-aligned to a column", () =
   // The character column at which each percentage label ends must be identical.
   const ends = gauges.map((l) => l.indexOf("%"));
   assert.equal(new Set(ends).size, 1, `labels not column-aligned: ${JSON.stringify(gauges)}`);
+});
+
+// --- Reviewer findings (v1.1 independent review): a null entry in
+// --- all_models_loaded collapsed the whole box, and the width metric was not
+// --- wide-character aware so CJK/emoji model names overflowed the border.
+
+test("visibleWidth: counts terminal columns, not UTF-16 units", () => {
+  // Hand-computed expected values; do NOT derive these from the implementation.
+  assert.equal(visibleWidth("Model"), 5);
+  assert.equal(visibleWidth("模型"), 4); // 2 wide chars
+  assert.equal(visibleWidth("🎉"), 2);
+  assert.equal(visibleWidth("模型🎉测试Model"), 15); // 4 + 2 + 4 + 5
+  assert.equal(visibleWidth("👨‍👩‍👧‍👦"), 2); // one ZWJ cluster, 11 UTF-16 units
+  assert.equal(visibleWidth("🇯🇵"), 2); // flag = regional-indicator pair
+  assert.equal(visibleWidth("e\u0301"), 1); // combining acute is zero-width
+  assert.equal(visibleWidth("\x1b[31mred\x1b[0m"), 3); // ANSI ignored
+});
+
+test("renderStatus: wide-character model names do not overflow the box", () => {
+  const snapshot: StatusSnapshot = {
+    baseUrl: "http://localhost:13305",
+    health: {
+      ...sampleHealth,
+      all_models_loaded: [
+        {
+          model_name: "模型🎉测试Model-👨‍👩‍👧‍👦",
+          device: "gpu",
+          type: "llm",
+          status: "ready",
+          checkpoint: "组织/模型名称-Q4_K_M",
+          backend_url: "http://127.0.0.1:8001/v1",
+          max_context_window: 40960,
+          pid: 1234,
+          pinned: false,
+        },
+      ],
+    },
+    stats: sampleStats,
+    system: sampleSystem,
+  };
+
+  for (const width of [20, 30, 58, 200]) {
+    const lines = renderStatus(snapshot, width, identityTheme);
+    for (const line of lines) {
+      assert.equal(
+        visibleWidth(line),
+        width,
+        `width ${width}: line has ${visibleWidth(line)} columns: ${JSON.stringify(line)}`,
+      );
+    }
+  }
+});
+
+test("renderStatus: a null entry in all_models_loaded does not collapse the box", () => {
+  const snapshot: StatusSnapshot = {
+    baseUrl: "http://localhost:13305",
+    health: {
+      ...sampleHealth,
+      all_models_loaded: [
+        null as unknown as (typeof sampleHealth)["all_models_loaded"][number],
+        { model_name: "Qwen3-0.6B-GGUF", type: "llm", device: "gpu", status: "ready" },
+      ],
+    },
+    stats: sampleStats,
+    system: sampleSystem,
+  };
+
+  assert.doesNotThrow(() => renderStatus(snapshot, 58, identityTheme));
+  const lines = renderStatus(snapshot, 58, identityTheme);
+  const joined = lines.join("\n");
+  assert.ok(lines.length > 5, `box collapsed to ${lines.length} line(s): ${joined}`);
+  assert.match(joined, /Qwen3-0\.6B-GGUF/);
+  assert.match(joined, /System/); // later sections still rendered
+  assert.ok(lines[lines.length - 1]?.endsWith("╯"), "box not properly closed");
 });

@@ -19,11 +19,79 @@ export interface StatusTheme {
   bold(s: string): string;
 }
 
-/** Strip ANSI SGR/OSC escape sequences to measure a string's visible width. */
-function visibleWidth(s: string): number {
+function stripAnsi(s: string): string {
   // eslint-disable-next-line no-control-regex
-  const stripped = s.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1b\][^\x07]*\x07/g, "");
-  return stripped.length;
+  return s.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1b\][^\x07]*\x07/g, "");
+}
+
+const segmenter =
+  typeof Intl !== "undefined" && "Segmenter" in Intl
+    ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+    : undefined;
+
+/**
+ * Split into grapheme clusters, so a ZWJ emoji family or a flag counts as one
+ * unit. Falls back to code points if Intl.Segmenter is unavailable.
+ */
+function graphemes(s: string): string[] {
+  if (segmenter) {
+    return Array.from(segmenter.segment(s), (seg) => seg.segment);
+  }
+  return Array.from(s);
+}
+
+/** Terminal columns occupied by a single code point. */
+function codePointWidth(cp: number): number {
+  if (cp === 0x200d) return 0; // zero-width joiner
+  if (cp >= 0xfe00 && cp <= 0xfe0f) return 0; // variation selectors
+  if (cp >= 0x0300 && cp <= 0x036f) return 0; // combining diacriticals
+  if (cp < 0x20 || (cp >= 0x7f && cp < 0xa0)) return 0; // control
+  if (
+    (cp >= 0x1100 && cp <= 0x115f) ||
+    (cp >= 0x2e80 && cp <= 0x303e) ||
+    (cp >= 0x3041 && cp <= 0x33ff) ||
+    (cp >= 0x3400 && cp <= 0x4dbf) ||
+    (cp >= 0x4e00 && cp <= 0x9fff) ||
+    (cp >= 0xa000 && cp <= 0xa4cf) ||
+    (cp >= 0xac00 && cp <= 0xd7a3) ||
+    (cp >= 0xf900 && cp <= 0xfaff) ||
+    (cp >= 0xfe10 && cp <= 0xfe19) ||
+    (cp >= 0xfe30 && cp <= 0xfe6f) ||
+    (cp >= 0xff00 && cp <= 0xff60) ||
+    (cp >= 0xffe0 && cp <= 0xffe6) ||
+    (cp >= 0x1f300 && cp <= 0x1f64f) ||
+    (cp >= 0x1f680 && cp <= 0x1f6ff) ||
+    (cp >= 0x1f900 && cp <= 0x1f9ff) ||
+    (cp >= 0x1f1e6 && cp <= 0x1f1ff) || // regional indicators (flags)
+    (cp >= 0x20000 && cp <= 0x3fffd)
+  ) {
+    return 2;
+  }
+  return 1;
+}
+
+/** Columns occupied by one grapheme cluster (widest code point in it). */
+function clusterWidth(cluster: string): number {
+  let max = 0;
+  for (const ch of cluster) {
+    const w = codePointWidth(ch.codePointAt(0) ?? 0);
+    if (w > max) max = w;
+  }
+  return max;
+}
+
+/**
+ * Visible terminal width of `s`, ignoring ANSI escapes and accounting for
+ * wide (CJK/emoji) and zero-width characters. Exported for tests: a naive
+ * `.length` metric silently let wide model names overflow the box, and a test
+ * that reuses the same flawed metric cannot catch that.
+ */
+export function visibleWidth(s: string): number {
+  let width = 0;
+  for (const cluster of graphemes(stripAnsi(s))) {
+    width += clusterWidth(cluster);
+  }
+  return width;
 }
 
 /** Pad or truncate `s` to exactly `width` visible columns. */
@@ -32,16 +100,21 @@ function fitWidth(s: string, width: number): string {
   const vis = visibleWidth(s);
   if (vis === w) return s;
   if (vis < w) return s + " ".repeat(w - vis);
-  // Truncate: since we only ever build these lines from plain (unstyled)
-  // text plus a handful of theme.fg() wraps around whole segments, a naive
-  // char-level slice is safe enough here — the strings passed through this
-  // path do not mix truncation points with escape codes in practice, but
-  // guard anyway by truncating the stripped form and re-emitting plain text.
-  if (!/\x1b/.test(s)) {
-    return s.slice(0, w);
+
+  // Truncate by grapheme cluster so a surrogate pair or emoji sequence is
+  // never split. Lines here are plain text plus whole-segment theme.fg()
+  // wraps, so dropping escapes on the truncating path keeps the accounting
+  // honest. A cut landing mid-wide-character leaves a column short, so pad.
+  const plain = stripAnsi(s);
+  let out = "";
+  let used = 0;
+  for (const cluster of graphemes(plain)) {
+    const cw = clusterWidth(cluster);
+    if (used + cw > w) break;
+    out += cluster;
+    used += cw;
   }
-  const stripped = s.replace(/\x1b\[[0-9;]*m/g, "");
-  return stripped.slice(0, w);
+  return used < w ? out + " ".repeat(w - used) : out;
 }
 
 /**
@@ -163,7 +236,12 @@ function renderStatusInner(
   );
   lines.push(row(""));
 
-  const models = health.all_models_loaded ?? [];
+  // Defence in depth: fetchHealth already drops non-object entries, but this
+  // function is exported and must not throw for any input. A single null
+  // entry here previously collapsed the whole box to an error line.
+  const models = (health.all_models_loaded ?? []).filter(
+    (m) => m !== null && typeof m === "object",
+  );
   if (models.length === 0) {
     lines.push(row(` ${theme.fg("dim", "○ no model resident")}`));
     lines.push(

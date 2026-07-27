@@ -120,3 +120,18 @@ Note the blast radius: a failed top-level import of pi-tui breaks the entire
 extension, not just the overlay. After changing such an import, verify with
 `pi --list-models | grep -c '^lemonade'` (models registering proves the module
 graph loaded).
+
+### Width measurement must be grapheme-aware
+
+`status-format.ts` deliberately does not import pi-tui (it must stay loadable
+by plain `node` for tests), so it carries its own `visibleWidth`. That helper
+is exported **so tests can pin it against hand-computed column counts** — the
+original version measured UTF-16 `.length`, and the test file reimplemented
+the same flawed metric, which made every width assertion structurally unable
+to detect wide-character overflow (a CJK model name overflowed the box by 4
+columns while tests reported the invariant satisfied).
+
+It now segments with `Intl.Segmenter` (grapheme clusters) and applies an
+East-Asian-Width table, so a ZWJ emoji family, a flag, and a combining accent
+each count correctly. Never assert widths in tests with a locally redefined
+metric; import `visibleWidth` and pin expected values by hand.
