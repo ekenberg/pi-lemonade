@@ -48,9 +48,9 @@ and excludes `ThinkSound-SFX`, `embed-gemma-300m-FLM`, and
 
 Cutover completed 2026-07-26: the static `Lemonade` provider block was
 removed from `~/.pi/agent/models.json` and the stale
-`Lemonade/qwen3vl-it-4b-FLM` entry in `enabledModels` was lowercased.
-Backups: `models.json.bak-pre-lemonade-cutover-*`,
-`settings.json.bak-pre-lemonade-cutover-*`.
+`Lemonade/qwen3vl-it-4b-FLM` entry in `enabledModels` was lowercased. The
+pre-cutover backups were verified and deleted once the extension had been in
+use; there is nothing to roll back to, and nothing to roll back from.
 
 ## Notes on implementation choices not spelled out in PLAN.md
 

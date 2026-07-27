@@ -19,7 +19,7 @@ re-execute them.
   residency, last-call telemetry, and system gauges. Independently reviewed,
   two defects fixed.
 - **Cutover done**: the static `Lemonade` block was removed from
-  `~/.pi/agent/models.json` (backups `*.bak-pre-lemonade-cutover-*`).
+  `~/.pi/agent/models.json`; pre-cutover backups have since been deleted.
 - **Verified**: the thinking toggle works end-to-end; `--reasoning-preserve`
   does *not* force thinking on (DISCOVERY claimed otherwise — corrected).
 

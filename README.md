@@ -80,7 +80,7 @@ lie.
 ## Cutover note
 
 The hand-maintained static `Lemonade` provider block was removed from
-`~/.pi/agent/models.json` on 2026-07-26 once this extension was verified
-(backup: `models.json.bak-pre-lemonade-cutover-*`). Keeping both caused a
-subtle trap: the two providers differed only by capitalisation in `/model`,
-and picking the static one silently disabled the thinking toggle.
+`~/.pi/agent/models.json` on 2026-07-26 once this extension was verified.
+Keeping both caused a subtle trap: the two providers differed only by
+capitalisation in `/model`, and picking the static one silently disabled the
+thinking toggle.
