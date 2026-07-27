@@ -1,3 +1,9 @@
+> **COMPLETED — historical spec, do not re-execute.** This plan for v1 (auto-discovery)
+> was implemented, independently reviewed, and shipped. It is kept for the
+> reasoning and decisions it records. Model counts in its acceptance checks
+> are a snapshot of the lemond fleet on the day it was written and have since
+> changed; verify against `npm run dry-run`, not against these numbers.
+
 # PLAN.md — pi-lemonade v1 implementation (stepped, for delegated agents)
 
 Audience: a worker agent implementing step by step, and a reviewer agent

@@ -1,3 +1,9 @@
+> **COMPLETED — historical spec, do not re-execute.** This plan for v1.1 (`/lemonade-status` overlay)
+> was implemented, independently reviewed, and shipped. It is kept for the
+> reasoning and decisions it records. Model counts in its acceptance checks
+> are a snapshot of the lemond fleet on the day it was written and have since
+> changed; verify against `npm run dry-run`, not against these numbers.
+
 # PLAN-STATUS.md — `/lemonade-status` overlay (v1.1)
 
 Audience: worker agent implementing, reviewer agent checking. Follow steps in
