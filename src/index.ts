@@ -1,10 +1,14 @@
 import { fetchLemonadeModels } from "./lemonade-api.ts";
 import { isChatModel, toPiModel } from "./capabilities.ts";
+import { registerStatusCommand } from "./status-command.ts";
 
 export default async function (pi: {
   registerProvider: (name: string, cfg: unknown) => void;
+  registerCommand: (name: string, cfg: unknown) => void;
 }) {
   const baseUrl = process.env.LEMONADE_URL ?? "http://localhost:13305";
+
+  registerStatusCommand(pi, baseUrl);
 
   const models = await fetchLemonadeModels(baseUrl);
   const chatModels = (models ?? []).filter(isChatModel).map(toPiModel);

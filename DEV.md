@@ -68,3 +68,34 @@ Backups: `models.json.bak-pre-lemonade-cutover-*`,
   v24.17.0 install, `node --test test/` (bare directory argument) fails
   with `MODULE_NOT_FOUND` rather than discovering files in the directory;
   the glob form works and is what CI/local runs should use.
+
+## `/lemonade-status` overlay (v1.1)
+
+Modules:
+
+- `src/lemonade-api.ts` — adds `fetchHealth`, `fetchStats`,
+  `fetchSystemStats`, all sharing the never-throw / content-type-guarded
+  contract of `fetchLemonadeModels`.
+- `src/status-format.ts` — pure rendering. `renderStatus(snapshot, width,
+  theme)` returns exact-width lines and never throws for any combination of
+  null/missing fields. No pi imports, so it is fully unit-testable; the real
+  pi theme satisfies the small `StatusTheme` interface and tests pass an
+  identity implementation.
+- `src/status-command.ts` — registers `/lemonade-status` and drives the
+  overlay: 1 s interval, in-flight guard so slow responses cannot overlap, and
+  a `closed` flag so no state is written after the overlay closes.
+
+Deliberate decisions:
+
+- **No bars for RAM/VRAM.** lemond reports `memory_gb` / `vram_gb` usage but
+  no total, so a bar would need an invented denominator. Only the three real
+  percentages (cpu/gpu/npu) get gauges. On this host the point is sharp: the
+  iGPU exposes 0.5 GB dedicated VRAM plus ~72 GB GTT, so no single "total" is
+  even meaningful.
+- **Command registered unconditionally**, even when discovery found no models
+  — diagnosing that case is exactly what the status view is for.
+
+Regression watch: both box corners (`╮`, `╯`) were lost once to off-by-one
+truncation in `fitWidth`. The bottom border now has a single `footer()` source
+of truth, and `test/status-format.test.ts` asserts all four corners in all
+four states.

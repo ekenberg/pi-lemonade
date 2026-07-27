@@ -46,13 +46,41 @@ LEMONADE_URL=http://other-host:13305
 Deferred to a later version (see `DISCOVERY.md` §Decision):
 
 - Explicit load/unload commands.
-- Telemetry / status surface.
 - Device (NPU/GPU) badges.
 - Eviction-aware UX.
 
+## Commands
+
+### `/lemonade-status`
+
+A read-only overlay showing everything lemond reports about itself:
+
+- **Loaded model(s)** — name, device (`gpu`/`npu`), type, backend status,
+  context window, pinned state, backend pid and url, checkpoint. When nothing
+  is resident (lemond idle-evicts) it says so explicitly.
+- **Residency** — per-capability caps (`llm 1/1`, `embedding 0/1`, …) and
+  pinned counts.
+- **Last call** — server-measured TTFT and tokens/sec, plus input/output
+  tokens. These are lemond's own numbers, so unlike a client-side meter they
+  include server-side queueing and true time-to-first-token.
+- **Totals** — cumulative request count and token counts.
+- **System** — CPU / GPU / NPU gauges, RAM and VRAM.
+
+The view auto-refreshes every second (the three endpoints it reads are
+lemond-designated "quiet polling" paths, so this is cheap and intended).
+Press `r` to refresh immediately, `esc` to close. It never mutates server
+state, and it degrades gracefully: if lemond is unreachable it says so rather
+than showing stale numbers, and any individual endpoint that fails renders as
+`—` placeholders instead of dropping its section.
+
+RAM and VRAM are shown as plain numbers rather than bars on purpose: lemond
+reports usage but no total, and inventing a denominator would make the bar
+lie.
+
 ## Cutover note
 
-This extension coexists with the hand-maintained static `Lemonade` provider
-block in `~/.pi/agent/models.json` during testing. Once the extension is
-verified to register the expected models, the owner will remove that static
-block to avoid duplicate provider entries.
+The hand-maintained static `Lemonade` provider block was removed from
+`~/.pi/agent/models.json` on 2026-07-26 once this extension was verified
+(backup: `models.json.bak-pre-lemonade-cutover-*`). Keeping both caused a
+subtle trap: the two providers differed only by capitalisation in `/model`,
+and picking the static one silently disabled the thinking toggle.
