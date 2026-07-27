@@ -99,3 +99,24 @@ Regression watch: both box corners (`╮`, `╯`) were lost once to off-by-one
 truncation in `fitWidth`. The bottom border now has a single `footer()` source
 of truth, and `test/status-format.test.ts` asserts all four corners in all
 four states.
+
+### Key handling gotcha (cost one killed pi process)
+
+pi enables the **Kitty keyboard protocol** on terminals that support it, so
+Escape does not arrive as a bare `\x1b` — it can be `\x1b[27u` (or
+`\x1b[27;1u`, or a modifyOtherKeys form). Comparing raw bytes silently fails
+and leaves an overlay unclosable.
+
+Always match keys with `matchesKey` from `@earendil-works/pi-tui`. It accepts
+all forms, including single letters (`matchesKey(data, "r")` also matches
+`\x1b[114u`). Verified directly against pi's `dist/keys.js`.
+
+That bare specifier is resolved by **pi's own loader** at runtime; plain `node`
+cannot resolve it from the installed extension directory, and it must not be
+added to `dependencies`. It is declared ambiently in `src/global.d.ts`. Sibling
+extensions (`pi-tts`, `pi-openrouter-plus`) import it the same way.
+
+Note the blast radius: a failed top-level import of pi-tui breaks the entire
+extension, not just the overlay. After changing such an import, verify with
+`pi --list-models | grep -c '^lemonade'` (models registering proves the module
+graph loaded).
