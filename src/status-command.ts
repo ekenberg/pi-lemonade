@@ -1,8 +1,20 @@
 // `/lemonade-status` overlay: a read-only, auto-refreshing view of Lemonade
 // Server residency, last-call telemetry, and system stats.
 
+import { matchesKey } from "@earendil-works/pi-tui";
 import { fetchHealth, fetchStats, fetchSystemStats } from "./lemonade-api.ts";
 import { renderStatus, type StatusSnapshot, type StatusTheme } from "./status-format.ts";
+
+// pi enables the Kitty keyboard protocol on terminals that support it, so
+// Escape can arrive as a CSI sequence (e.g. "\x1b[27u") rather than a bare
+// "\x1b". Comparing raw bytes misses that and leaves the overlay unclosable,
+// so always go through pi-tui's matcher; the raw comparisons are kept only as
+// a fallback.
+const isEscape = (data: string): boolean =>
+  matchesKey(data, "escape") || data === "\x1b";
+
+const isRefresh = (data: string): boolean =>
+  matchesKey(data, "r") || data === "r" || data === "R";
 
 const REFRESH_MS = 1000;
 
@@ -76,12 +88,12 @@ function createStatusComponent(
     },
     invalidate(): void {},
     handleInput(data: string): void {
-      if (data === "\x1b" || data === "\u001b") {
+      if (isEscape(data)) {
         close();
         done(undefined);
         return;
       }
-      if (data === "r" || data === "R") {
+      if (isRefresh(data)) {
         refresh();
         return;
       }
